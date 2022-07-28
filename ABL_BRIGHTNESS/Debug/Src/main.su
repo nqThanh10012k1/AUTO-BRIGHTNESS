@@ -1,0 +1,9 @@
+../Src/main.c:24:5:main	8	static
+../Src/main.c:37:6:TIM1_Base_Init	24	static
+../Src/main.c:58:6:TIM1_UP_TIM10_IRQHandler	8	static
+../Src/main.c:64:6:Led_Control_Timer_OC_Init	48	static
+../Src/main.c:95:6:Light_Sensor_Adc_Init	56	static
+../Src/main.c:133:10:Light_Sensor_Adc_Polling_Read	16	static
+../Src/main.c:144:10:Filter_Input_Signal_Noise	24	static
+../Src/main.c:165:6:ABL_Step_Brightness	24	static
+../Src/main.c:186:6:ABL_Process	16	static

@@ -1,0 +1,21 @@
+18:20:48 **** Incremental Build of configuration Debug for project ABL_BRIGHTNESS ****
+make -j4 all 
+arm-none-eabi-gcc "../Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DNUCLEO_F401RE -DSTM32 -DSTM32F401RETx -DSTM32F4 -c -I../Inc -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Drivers/CMSIS/Include" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Drivers/STM32F401RE_StdPeriph_Driver/inc" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/button" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/buzzer" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/led" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/rtos" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/sensor" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/serial" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Middle/ucglib" -I"D:/STM32/SDK_1.0.3_NUCLEO-F401RE/shared/Utilities" -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"Src/main.d" -MT"Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Src/main.o"
+arm-none-eabi-gcc -o "ABL_BRIGHTNESS.elf" @"objects.list"  -lLibraries -mcpu=cortex-m4 -T"D:\Project\ABL_BRIGHTNESS\ABL_BRIGHTNESS\STM32F401RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="ABL_BRIGHTNESS.map" -Wl,--gc-sections -static -L"D:\STM32\SDK_1.0.3_NUCLEO-F401RE\lib_stm" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: ABL_BRIGHTNESS.elf
+ 
+arm-none-eabi-size   ABL_BRIGHTNESS.elf 
+arm-none-eabi-objdump -h -S  ABL_BRIGHTNESS.elf  > "ABL_BRIGHTNESS.list"
+   text	   data	    bss	    dec	    hex	filename
+   6512	     28	   1572	   8112	   1fb0	ABL_BRIGHTNESS.elf
+Finished building: default.size.stdout
+ 
+Finished building: ABL_BRIGHTNESS.list
+ 
+18:20:55 **** Incremental Build of configuration Debug for project ABL_BRIGHTNESS ****
+make -j4 all 
+arm-none-eabi-size   ABL_BRIGHTNESS.elf 
+   text	   data	    bss	    dec	    hex	filename
+   6512	     28	   1572	   8112	   1fb0	ABL_BRIGHTNESS.elf
+Finished building: default.size.stdout
+ 

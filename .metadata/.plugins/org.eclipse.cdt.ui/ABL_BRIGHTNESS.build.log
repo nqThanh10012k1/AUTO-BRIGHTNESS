@@ -1,0 +1,10 @@
+18:20:55 **** Incremental Build of configuration Debug for project ABL_BRIGHTNESS ****
+make -j4 all 
+arm-none-eabi-size   ABL_BRIGHTNESS.elf 
+   text	   data	    bss	    dec	    hex	filename
+   6512	     28	   1572	   8112	   1fb0	ABL_BRIGHTNESS.elf
+Finished building: default.size.stdout
+ 
+
+18:20:56 Build Finished. 0 errors, 0 warnings. (took 245ms)
+

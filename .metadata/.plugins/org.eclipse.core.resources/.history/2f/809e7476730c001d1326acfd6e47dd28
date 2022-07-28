@@ -1,0 +1,251 @@
+/*
+ * ABL_MCU_V1.0.0.c
+ *
+ *  Created on: Dec 11, 2021
+ *      Author: Thanh Nguyen
+ */
+
+#include <stm32f401re_rcc.h>
+#include <stm32f401re_gpio.h>
+#include <stm32f401re_tim.h>
+#include <stm32f401re_adc.h>
+#include <misc.h>
+
+static void Led_Control_Timer_OC_Init();
+static void TIM1_Base_Init();
+static void Light_Sensor_Adc_Init();
+static uint16_t Light_Sensor_Adc_Polling_Read();
+static uint16_t Filter_Input_Signal_Noise(uint8_t Reset_State);
+static void ABL_Step_Brightness(uint16_t ADC_Value);
+static void ABL_Process();
+
+static uint8_t Timer_Status = 0;
+
+int main()
+{
+	SystemCoreClockUpdate();
+	TIM1_Base_Init();
+	Light_Sensor_Adc_Init();
+	Led_Control_Timer_OC_Init();
+
+	while (1)
+	{
+		ABL_Process();
+	}
+}
+
+static void TIM1_Base_Init()
+{
+	TIM_TimeBaseInitTypeDef		TIMER_Init_Structure;
+	NVIC_InitTypeDef			NVIC_Init_Structure;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+	TIMER_Init_Structure.TIM_Prescaler = 4199;
+	TIMER_Init_Structure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIMER_Init_Structure.TIM_Period = 999;
+	TIMER_Init_Structure.TIM_ClockDivision = TIM_CKD_DIV1;
+	TIMER_Init_Structure.TIM_RepetitionCounter = 0;
+	TIM_TimeBaseInit(TIM1, &TIMER_Init_Structure);
+	TIM_Cmd(TIM1, ENABLE);
+
+	NVIC_Init_Structure.NVIC_IRQChannel = TIM1_UP_TIM10_IRQn;
+	NVIC_Init_Structure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init_Structure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_Init_Structure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_Init(&NVIC_Init_Structure);
+	TIM_ITConfig(TIM1, TIM_IT_Update, ENABLE);
+}
+
+void TIM1_UP_TIM10_IRQHandler()
+{
+	Timer_Status = 1;
+	TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
+}
+
+static void Led_Control_Timer_OC_Init()
+{
+	GPIO_InitTypeDef GPIO_Init_Structure;
+	TIM_TimeBaseInitTypeDef TIM_TimBase_Init_Structure;
+	TIM_OCInitTypeDef TIM_OC_Init_Structure;
+
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+	GPIO_Init_Structure.GPIO_Mode = GPIO_Mode_AF;
+	GPIO_Init_Structure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init_Structure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init_Structure.GPIO_Pin = GPIO_Pin_11;
+	GPIO_PinAFConfig(GPIOA, GPIO_PinSource11, GPIO_AF_TIM1);
+	GPIO_Init(GPIOA, &GPIO_Init_Structure);
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+	TIM_TimBase_Init_Structure.TIM_Prescaler = 839;
+	TIM_TimBase_Init_Structure.TIM_Period = 999;
+	TIM_TimBase_Init_Structure.TIM_ClockDivision = 0;
+	TIM_TimBase_Init_Structure.TIM_CounterMode = TIM_CounterMode_Up;
+	TIM_TimBase_Init_Structure.TIM_RepetitionCounter = 0;
+	TIM_TimeBaseInit(TIM1, &TIM_TimBase_Init_Structure);
+
+	TIM_OC_Init_Structure.TIM_OCMode = TIM_OCMode_PWM2;
+	TIM_OC_Init_Structure.TIM_OCPolarity = TIM_OCPolarity_Low;
+	TIM_OC_Init_Structure.TIM_OutputState = ENABLE;
+	TIM_OC_Init_Structure.TIM_Pulse = 0;
+	TIM_OC4Init(TIM1, &TIM_OC_Init_Structure);
+	TIM_Cmd(TIM1, ENABLE);
+	TIM_CtrlPWMOutputs(TIM1, ENABLE);
+}
+
+static void Light_Sensor_Adc_Init()
+{
+	GPIO_InitTypeDef GPIO_Init_Structure;
+	ADC_CommonInitTypeDef ADC_Common_Init_Structure;
+	ADC_InitTypeDef ADC_Init_Structure;
+
+	//***** GPIO Init *****/
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
+	GPIO_Init_Structure.GPIO_Mode = GPIO_Mode_AN;
+	GPIO_Init_Structure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init_Structure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init_Structure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_Init(GPIOC, &GPIO_Init_Structure);
+
+	/***** ADC Common Init *****/
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+
+	ADC_DeInit();
+	ADC_Common_Init_Structure.ADC_Mode = ADC_Mode_Independent;
+	ADC_Common_Init_Structure.ADC_Prescaler = ADC_Prescaler_Div2;
+	ADC_Common_Init_Structure.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;
+	ADC_Common_Init_Structure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
+	ADC_CommonInit(&ADC_Common_Init_Structure);
+
+	/***** ADC Init for polling mode*****/
+	ADC_Init_Structure.ADC_Resolution = ADC_Resolution_12b;
+	ADC_Init_Structure.ADC_ScanConvMode = DISABLE;
+	ADC_Init_Structure.ADC_ContinuousConvMode = DISABLE;
+	ADC_Init_Structure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
+	ADC_Init_Structure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T1_CC1;
+	ADC_Init_Structure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_Init_Structure.ADC_NbrOfConversion = 16;
+	ADC_Init(ADC1, &ADC_Init_Structure);
+
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_15, 1, ADC_SampleTime_15Cycles);
+	ADC_Cmd(ADC1, ENABLE);
+}
+
+static uint16_t Light_Sensor_Adc_Polling_Read()
+{
+	uint16_t ADC_Measurement_Value = 0;
+
+	ADC_SoftwareStartConv(ADC1);
+	while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);
+	ADC_Measurement_Value = ADC_GetConversionValue(ADC1);
+
+	return ADC_Measurement_Value;
+}
+
+static uint16_t Filter_Input_Signal_Noise(uint8_t Reset_State)
+{
+	static uint16_t The_Estimate_Of_Current = 0;
+	static uint8_t Number_Of_Filters = 0;
+	float Kalman_Gain = 0;
+	uint16_t Predicted_Of_current = 0;
+	uint16_t ADC_Measurement_Value = 0;
+
+	Kalman_Gain = ((float)1 / (++Number_Of_Filters));
+	ADC_Measurement_Value = Light_Sensor_Adc_Polling_Read();
+	Predicted_Of_current = The_Estimate_Of_Current;
+	The_Estimate_Of_Current = Predicted_Of_current + Kalman_Gain*(ADC_Measurement_Value - Predicted_Of_current);
+
+	if (Reset_State == 1)
+	{
+		Number_Of_Filters = 0;
+	}
+
+	return The_Estimate_Of_Current;
+}
+
+/*
+static void ABL_Step_Brightness(uint16_t ADC_Value)
+{
+	uint16_t Period = 0;
+
+	if (ADC_Value < 200)
+	{
+		TIM_SetCompare4(TIM1, (999 * 2) / 100);
+	}
+	else if ((ADC_Value >= 200) && (ADC_Value < 350))
+	{
+		Period = (999 * 5) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 350) && (ADC_Value < 500))
+	{
+		Period = (999 * 10) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 500) && (ADC_Value < 650))
+	{
+		Period = (999 * 20) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 650) && (ADC_Value < 800))
+	{
+		Period = (999 * 30) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 800) && (ADC_Value < 950))
+	{
+		Period = (999 * 40) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 950) && (ADC_Value < 1100))
+	{
+		Period = (999 * 60) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if ((ADC_Value >= 1100) && (ADC_Value < 1250))
+	{
+		Period = (999 * 80) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if (ADC_Value > 1250)
+	{
+		Period = (999 * 100) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+}*/
+
+static void ABL_Step_Brightness(uint16_t ADC_Value)
+{
+	uint16_t Period = 0;
+
+	if (ADC_Value < 200)
+	{
+		Period = (999 * 2) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else if (ADC_Value > 1250)
+	{
+		Period = (999 * 100) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+	else
+	{
+		Period = (999 * ((ADC_Value * 98) / 1050) - 17) / 100;
+		TIM_SetCompare4(TIM1, Period);
+	}
+}
+
+static void ABL_Process()
+{
+	uint16_t ADC_Value = 0;
+
+	ADC_Value = Filter_Input_Signal_Noise(0);
+
+	if (Timer_Status == 1)
+	{
+		ADC_Value = Filter_Input_Signal_Noise(1);
+		ABL_Step_Brightness(ADC_Value);
+		Timer_Status = 0;
+	}
+}
+
+
